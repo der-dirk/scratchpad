@@ -22,7 +22,8 @@ import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.ListView;
+import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -31,22 +32,27 @@ public class MainActivity extends ActionBarActivity implements OnClickListener, 
   public final static String BT_SERVICE_NAME     = "BT_TEXT_SERVICE";
   public final static String BT_SERVICE_UUID     = "08a9f970-eff5-11e3-ac10-0800200c9a66";
   public final static int    BT_MESSAGE_READ     = 1;
-  public final static int    BT_MESSAGE_SOCKET_CONNECTED = 2;
+  public final static int    BT_MESSAGE_WRITE    = 2;
+  public final static int    BT_MESSAGE_SOCKET_CONNECTED = 3;
   
   private final static int REQUEST_ENABLE_BT = 1;
   
   private BluetoothAdapter     _bluetoothAdapter = null;
   private List<String>         _devicesList = new ArrayList<String>();
   private ArrayAdapter<String> _devicesListAdapter = null;
-  private Handler              _btSocketConnectedHandler;
-  private Handler              _btReadHandler;
+  private Handler              _btSocketConnectedHandler = null;
+  private Handler              _btReadHandler  = null;
+  private Handler              _btWriteHandler = null;
   private AcceptThread         _acceptThread;
   private ConnectThread        _connectThread;
   private ConnectedThread      _connectedThread;
   
-  private ListView         _deviceListView        = null;
+  private Spinner          _deviceSpinner         = null;
+  private TextView         _connectedTextView    = null;
   private Button           _connectButton         = null;
+  private Button           _submitButton          = null;
   private TextView         _remoteMessageTextView = null;
+  private EditText         _localMessageEditText  = null;
   
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
@@ -59,8 +65,9 @@ public class MainActivity extends ActionBarActivity implements OnClickListener, 
 			getSupportFragmentManager().beginTransaction().add(R.id.container, new PlaceholderFragment()).commit();
 		}
 				
-		_devicesListAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, _devicesList);
-		_btReadHandler = new Handler(this);
+		_devicesListAdapter       = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, _devicesList);
+		_btReadHandler            = new Handler(this);
+		_btSocketConnectedHandler = new Handler(this);
 		
     _bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
     if (_bluetoothAdapter != null)
@@ -132,7 +139,7 @@ public class MainActivity extends ActionBarActivity implements OnClickListener, 
       for (BluetoothDevice device : pairedDevices)
       {
         // Add the name and address to an array adapter to show in a ListView
-        _devicesListAdapter.add(device.getName() + "\n" + device.getAddress());
+        _devicesListAdapter.add(device.getName() /*+ "\n" + device.getAddress()*/);
       }
     }
     else
@@ -140,13 +147,41 @@ public class MainActivity extends ActionBarActivity implements OnClickListener, 
   }
   
 	@Override
-	public void onClick(View arg0)
+	public void onClick(View view)
 	{
-	  Set<BluetoothDevice> pairedDevices = _bluetoothAdapter.getBondedDevices();
-	  if (pairedDevices.iterator().hasNext())
+	  if (view.getId() == R.id.connect_button)
 	  {
-	    _connectThread = new ConnectThread(_bluetoothAdapter, pairedDevices.iterator().next(), _btSocketConnectedHandler);
-	    _connectThread.start();
+	    BluetoothDevice selectedDevice = null;
+  	  Set<BluetoothDevice> pairedDevices = _bluetoothAdapter.getBondedDevices();
+      if (pairedDevices.size() > 0)
+      {
+        // Loop through paired devices
+        for (BluetoothDevice device : pairedDevices)
+        {
+          String nameSelected = (String) _deviceSpinner.getSelectedItem();
+          String nameDevice   = device.getName();
+          if (nameDevice.equals(nameSelected))
+          {
+            selectedDevice = device;
+            break;
+          }
+        }
+      }  	  
+  	  
+      if (selectedDevice != null)
+      {
+    	  _connectThread = new ConnectThread(_bluetoothAdapter, selectedDevice, _btSocketConnectedHandler);
+    	  _connectThread.start();
+      }
+      
+	  }
+	  else if (view.getId() == R.id.submit_button)
+	  {
+	    if (_btWriteHandler != null)
+	    {
+	      byte [] bytes = _localMessageEditText.getText().toString().getBytes();
+	      _btWriteHandler.obtainMessage(BT_MESSAGE_WRITE, bytes).sendToTarget();
+	    }
 	  }
 	}
 	
@@ -169,13 +204,22 @@ public class MainActivity extends ActionBarActivity implements OnClickListener, 
 	    
 	    MainActivity act = (MainActivity) getActivity();	    
 
-	    act._deviceListView = (ListView) rootView.findViewById(R.id.devices_list_view);
-	    act._deviceListView.setAdapter(act._devicesListAdapter);
+	    act._deviceSpinner = (Spinner) rootView.findViewById(R.id.devices_spinner);
+	    act._deviceSpinner.setAdapter(act._devicesListAdapter);
+	    
+	    act._connectedTextView = (TextView) rootView.findViewById(R.id.connected_text_view);
 	    
 	    act._connectButton = (Button) rootView.findViewById(R.id.connect_button);
 	    act._connectButton.setOnClickListener(act);
 	    
+	    act._submitButton = (Button) rootView.findViewById(R.id.submit_button);
+      act._submitButton.setOnClickListener(act);
+	    
 	    act._remoteMessageTextView = (TextView) rootView.findViewById(R.id.remote_message_text_view);
+	    
+	    act._localMessageEditText = (EditText) rootView.findViewById(R.id.local_message_edit_text);
+	    
+	    act.populateDevicesList();
 	    
 	    return rootView;
 	  }
@@ -198,6 +242,11 @@ public class MainActivity extends ActionBarActivity implements OnClickListener, 
     {
       BluetoothSocket socket = (BluetoothSocket) msg.obj;
       _connectedThread = new ConnectedThread(socket, _btReadHandler);
+      _btWriteHandler = _connectedThread.writeHandler();
+      _connectedThread.start();
+      
+      _connectedTextView.setText("Connected");
+      
       return true;
     }
     

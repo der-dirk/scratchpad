@@ -6,10 +6,13 @@ import java.io.OutputStream;
 
 import android.bluetooth.BluetoothSocket;
 import android.os.Handler;
+import android.os.Handler.Callback;
+import android.os.Message;
 
-public class ConnectedThread extends Thread
+public class ConnectedThread extends Thread implements Callback
 {
-  private Handler               _handler;
+  private Handler               _readHandler;
+  private Handler               _writeHandler;
   private final BluetoothSocket _socket;
   private final InputStream     _inStream;
   private final OutputStream    _outStream;
@@ -17,10 +20,12 @@ public class ConnectedThread extends Thread
   public ConnectedThread(BluetoothSocket socket, Handler handler)
   {
     _socket = socket;
-    _handler = handler;
+    _readHandler = handler;
     InputStream tmpIn = null;
     OutputStream tmpOut = null;
 
+    _writeHandler = new Handler(this);
+    
     // Get the input and output streams, using temp objects because
     // member streams are final
     try
@@ -35,6 +40,11 @@ public class ConnectedThread extends Thread
     _outStream = tmpOut;
   }
 
+  public Handler writeHandler()
+  {
+    return _writeHandler;
+  }
+  
   public void run()
   {
     byte[] buffer = new byte[1024]; // buffer store for the stream
@@ -48,7 +58,7 @@ public class ConnectedThread extends Thread
         // Read from the InputStream
         bytes = _inStream.read(buffer);
         // Send the obtained bytes to the UI activity
-        _handler.obtainMessage(MainActivity.BT_MESSAGE_READ, bytes, -1, buffer).sendToTarget();
+        _readHandler.obtainMessage(MainActivity.BT_MESSAGE_READ, bytes, -1, buffer).sendToTarget();
       } catch (IOException e)
       {
         break;
@@ -76,5 +86,15 @@ public class ConnectedThread extends Thread
     } catch (IOException e)
     {
     }
+  }
+
+  @Override
+  public boolean handleMessage(Message msg)
+  {
+    byte[] message = (byte[]) msg.obj;
+    write(message);
+    return true;
+    
+    //return false;
   }
 }

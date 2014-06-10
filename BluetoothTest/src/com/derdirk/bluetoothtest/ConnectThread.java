@@ -47,7 +47,9 @@ public class ConnectThread extends Thread
       // Connect the device through the socket. This will block
       // until it succeeds or throws an exception
       _socket.connect();
-    } catch (IOException connectException)
+      _socketConnectedHandler.obtainMessage(MainActivity.BT_MESSAGE_SOCKET_CONNECTED, _socket).sendToTarget();
+    }
+    catch (IOException connectException)
     {
       // Unable to connect; close the socket and get out
       try
@@ -59,9 +61,6 @@ public class ConnectThread extends Thread
       }
       return;
     }
-
-    // Do work to manage the connection (in a separate thread)
-    _socketConnectedHandler.obtainMessage(MainActivity.BT_MESSAGE_SOCKET_CONNECTED, _socket).sendToTarget();
   }
 
   /** Will cancel an in-progress connection, and close the socket */

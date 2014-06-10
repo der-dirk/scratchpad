@@ -9,12 +9,6 @@
     android:orientation="vertical"
     tools:context="com.derdirk.bluetoothtest.MainActivity$PlaceholderFragment" >
 
-    <TextView
-        android:id="@+id/textView1"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/hello_world" />
-
     <Button
         android:id="@+id/connect_button"
         android:layout_width="wrap_content"
@@ -22,11 +16,17 @@
 		android:onClick="connectButtonCklicked"        
         android:text="Connect" />
 
-    <ListView
-        android:id="@+id/devices_list_view"
+    <Spinner
+        android:id="@+id/devices_spinner"
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
 
+    <TextView
+        android:id="@+id/connected_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Not connected" />
+        
     <EditText
         android:id="@+id/local_message_edit_text"
         android:layout_width="match_parent"
