@@ -3,204 +3,61 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Rect;
 import android.os.Handler;
 import android.os.Message;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 
 public class GameView extends View
 { 
   
-  interface Paintable
-  {
-    abstract void paint(Canvas canvas);
-  }
+  Handler   _viewHandler     = null;
+  Handler   _gameOverHandler = null;
+  GameBoard _gameBoard       = new GameBoard();
   
-  interface CanCollide
-  {
-    public abstract Rect boundingBox();
-  }
-
-  class CollisionDetector
-  {
-    private CanCollide _thing1;    
-    private CanCollide _thing2;
-    
-    CollisionDetector(CanCollide thing1, CanCollide thing2)
-    {
-      _thing1 = thing1;
-      _thing2 = thing2;
-    }
-    
-    public Boolean collide()
-    {
-      return Rect.intersects(_thing1.boundingBox(), _thing2.boundingBox());
-    }
-    
-    // Relates to thing1
-    public Boolean collideLeft()
-    {
-      Rect leftCorner = new Rect(_thing1.boundingBox().left, _thing1.boundingBox().top, _thing1.boundingBox().left, _thing1.boundingBox().bottom);
-      return Rect.intersects(leftCorner, _thing2.boundingBox());
-    }
-    
-    // Relates to thing1
-    public Boolean collideTop()
-    {
-      Rect topCorner = new Rect(_thing1.boundingBox().left, _thing1.boundingBox().top, _thing1.boundingBox().right, _thing1.boundingBox().top);
-      return Rect.intersects(topCorner, _thing2.boundingBox());
-    }
-    
-    // Relates to thing1
-    public Boolean collideRight()
-    {
-      Rect rightCorner = new Rect(_thing1.boundingBox().right, _thing1.boundingBox().top, _thing1.boundingBox().right, _thing1.boundingBox().bottom);
-      return Rect.intersects(rightCorner, _thing2.boundingBox());
-    }
-    
-    // Relates to thing1
-    public Boolean collideBottom()
-    {
-      Rect bottomCorner = new Rect(_thing1.boundingBox().left, _thing1.boundingBox().bottom, _thing1.boundingBox().right, _thing1.boundingBox().bottom);
-      return Rect.intersects(bottomCorner, _thing2.boundingBox());
-    }
-    
-  }
-  
-  class MovingThing 
-  {   
-    public float postionX;
-    public float postionY;
-    public float momentumX;
-    public float momentumY;
-    
-    public void swapHorizontal() {momentumX = -momentumX;}
-    public void swapVertical()   {momentumY = -momentumY;}
-    
-    public void move()
-    {
-      postionY  = postionY + momentumY;
-      postionX  = postionX + momentumX;
-    }
-  }
-  
-  class Ball extends MovingThing implements Paintable, CanCollide
-  {
-    protected int   _size;
-    protected Paint _paint = new Paint();
-    
-    Ball(int size)
-    {
-      _size = size;
-      
-      postionX  = 100;
-      postionY  = 100;
-      momentumX =  10;
-      momentumY =  10;
-      
-      _paint.setColor(Color.GREEN);
-      _paint.setAntiAlias(true);
-      _paint.setTextSize(60);
-    }
-    
-    public int size()
-    {
-      return _size;
-    }
-    
-    @Override
-    public void paint(Canvas canvas)
-    {
-      canvas.drawCircle(postionX, postionY, _size, _paint);
-      
-      //String text = Float.toString(_postionX) + "/" + Float.toString(_postionY);
-      //canvas.drawText(text, 0, text.length(), _postionX, _postionY + 60, paint);
-    }
-
-    @Override
-    public Rect boundingBox()
-    {
-      return new Rect((int)(postionX - _size/2), (int)(postionY - _size/2), (int)(postionX + _size/2), (int)(postionY + _size/2));
-    }
-  }
-  
-  class Paddle extends MovingThing implements Paintable, CanCollide
-  {
-    protected int _sizeX;
-    protected int _sizeY;
-    protected Paint _paint = new Paint();
-    
-    Paddle(int sizeX, int sizeY)
-    {
-      postionX     = 200;
-      postionY     = 200;
-      momentumX    =   0;
-      momentumY    =   0;
-     
-      _sizeX = sizeX;
-      _sizeY = sizeY;
-      
-      _paint.setColor(Color.BLUE);
-      _paint.setAntiAlias(true);
-      _paint.setTextSize(60);      
-    }
-    
-    @Override
-    public void paint(Canvas canvas)
-    {
-      canvas.drawRect(postionX - _sizeX/2, postionY - _sizeY/2, postionX + _sizeX/2, postionY + _sizeY/2, _paint);
-    }
-
-    @Override
-    public Rect boundingBox()
-    {
-      return new Rect((int)(postionX - _sizeX/2), (int)(postionY - _sizeY/2), (int)(postionX + _sizeX/2), (int)(postionY + _sizeY/2));
-    }
-    
-  }
-  
-  Handler _viewHandler     = null;
-  Handler _gameOverHandler = null;
-  Ball    _ball            = new Ball(60);
-  Paddle  _paddle          = new Paddle(200, 60);  
+  protected Paint _paintBall   = new Paint();
+  protected Paint _paintPaddle = new Paint();
   
   public GameView(Context context)
   {
     super(context);
-    initViewHandler();
+    init();
   }
 
   public GameView(Context context, AttributeSet attrs)
   {
     super(context, attrs);
-    initViewHandler();
+    init();
   }
 
   public GameView(Context context, AttributeSet attrs, int defStyleAttr)
   {
     super(context, attrs, defStyleAttr);
-    initViewHandler();
+    init();
   }
   
-  public void setGameOverHandler(Handler gameOverHandler)
+  protected void init()
   {
-    _gameOverHandler = gameOverHandler;
-  }
-  
-  protected void initViewHandler()
-  {
+    _paintBall.setColor(Color.GREEN);
+    _paintBall.setAntiAlias(true);
+    _paintBall.setTextSize(60);
+    
+    _paintPaddle.setColor(Color.BLUE);
+    _paintPaddle.setAntiAlias(true);
+    _paintPaddle.setTextSize(60);     
+    
     final View touchView = (View)findViewById(R.id.game_view);
     touchView.setOnTouchListener(new View.OnTouchListener()
+    {
+      @Override
+      public boolean onTouch(View v, MotionEvent event)
       {
-        @Override
-        public boolean onTouch(View v, MotionEvent event)
-        {
-          _paddle.postionX = event.getX();
-          return true;
-        }
-      });
+        _gameBoard.onTouch(translateXToGameBoard(event.getX()), translateXToGameBoard(event.getY()));
+        return true;
+      }
+    });
     
     _viewHandler = new Handler()
     {
@@ -211,74 +68,69 @@ public class GameView extends View
       }
     };
   }
+
+  public float translateXToGameBoard(float x)
+  {
+    float translated = (x*_gameBoard.sizeX())/(float)getWidth();
+//    Log.d("A", "X toGB: " + String.valueOf(x));
+//    Log.d("A", "X toGB: " + String.valueOf(_gameBoard.sizeX()));
+//    Log.d("A", "X toGB: " + String.valueOf((float)getWidth()));
+//    Log.d("A", "X toGB: " + String.valueOf(translated));
+    return translated;
+  }
+  
+  public float translateYToGameBoard(float y)
+  {
+    float translated = (y*_gameBoard.sizeY())/(float)getHeight();
+//    Log.d("A", "Y toGB: " + String.valueOf(translated));
+    return translated;
+  }
+  
+  public float translateXFromGameBoard(float x)
+  {
+    float translated = (x*(float)getWidth())/_gameBoard.sizeX();
+//    Log.d("A", "X fromGB: " + String.valueOf(translated));
+    return translated;
+  }
+  
+  public float translateYFromGameBoard(float y)
+  {
+    float translated = (y*(float)getHeight())/_gameBoard.sizeY();
+//    Log.d("A", "Y fromGB: " + String.valueOf(translated));
+    return translated;
+  }
+  
+  public void setGameOverHandler(Handler gameOverHandler)
+  {
+    _gameOverHandler = gameOverHandler;
+  }
+  
   
   @Override
   protected void onDraw(Canvas canvas)
   {  
     super.onDraw(canvas);
     
-    _paddle.postionY = canvas.getHeight() - 100;
+    Ball   ball   = _gameBoard.ball();
+    Paddle paddle = _gameBoard.paddle();
     
-    _ball.paint(canvas);
-    _paddle.paint(canvas);
+    canvas.drawCircle(translateXFromGameBoard(ball.postionX),
+                      translateYFromGameBoard(ball.postionY),
+                      translateXFromGameBoard(ball.size()), // TODO: Translation wrong
+                      _paintBall);
     
-    int size = _ball.size();
+    canvas.drawRect(translateXFromGameBoard(paddle.postionX - paddle.width()/2f),
+                    translateYFromGameBoard(paddle.postionY - paddle.height()/2f),
+                    translateXFromGameBoard(paddle.postionX + paddle.width()/2f),
+                    translateYFromGameBoard(paddle.postionY + paddle.height()/2f),
+                    _paintPaddle);
     
-    Boolean touchTop    = (_ball.postionY - size/2) < 0;
-    Boolean touchBottom = (_ball.postionY + size/2) > canvas.getHeight();
-    Boolean touchLeft   = (_ball.postionX + size/2) < 0;
-    Boolean touchRight  = (_ball.postionX + size/2) > canvas.getWidth();
+    _gameBoard.proceed();
     
-//    if ( touchTop || touchBottom || touchLeft || touchRight)
-//      _paint.setColor(Color.RED);
-    
-    Boolean gameOver = false;
-    
-    if (touchBottom)
-    { 
-      gameOver = true;
-    }
-    else if (touchTop)
-    { 
-      _ball.postionY = size/2 + 1;
-      _ball.swapVertical();
-    }
-    if (touchLeft)
-    { 
-      _ball.postionX = size/2 + 1;
-      _ball.swapHorizontal();
-    }
-    else if (touchRight)
-    { 
-      _ball.postionX = canvas.getWidth() - (size/2 + 1);
-      _ball.swapHorizontal();
-    }
-    else
-    {
-      CollisionDetector cd = new CollisionDetector(_paddle, _ball);
-      if (cd.collide())
-      {
-        if ((cd.collideLeft() || cd.collideRight()) && (cd.collideTop() || cd.collideBottom()))
-        {
-          _ball.swapHorizontal();
-          _ball.swapVertical();
-        }
-        else if (cd.collideLeft() || cd.collideRight())
-          _ball.swapHorizontal();
-        else
-          _ball.swapVertical();
-      }
-    }
-      
-    if (!gameOver)
-    {
-      _ball.move();
-      _paddle.move();
-      
+    if (!_gameBoard.gameOver())
       _viewHandler.sendEmptyMessageDelayed(0, 10);
-    }
-    else if (_gameOverHandler != null)
-      _gameOverHandler.sendEmptyMessage(0);
+//    else
+//      _gameOverHandler.sendEmptyMessage(0); 
   }
   
 }

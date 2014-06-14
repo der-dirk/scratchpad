@@ -149,7 +149,7 @@ public class MainActivity extends ActionBarActivity implements OnClickListener, 
 	@Override
 	public void onClick(View view)
 	{
-	  if (view.getId() == R.id.connect_button)
+	  if (view.getId() == R.id.connect_button)g
 	  {
 	    BluetoothDevice selectedDevice = null;
   	  Set<BluetoothDevice> pairedDevices = _bluetoothAdapter.getBondedDevices();
