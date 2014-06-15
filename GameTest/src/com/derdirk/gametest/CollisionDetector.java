@@ -6,44 +6,49 @@ class CollisionDetector
 {
   private CanCollide _thing1;    
   private CanCollide _thing2;
+  private RectF      _cornerRect = new RectF();
   
-  CollisionDetector(CanCollide thing1, CanCollide thing2)
+  public void setThings(CanCollide thing1, CanCollide thing2)
   {
     _thing1 = thing1;
-    _thing2 = thing2;
+    _thing2 = thing2; 
   }
   
-  public Boolean collide()
+  public boolean collide()
   {
     return RectF.intersects(_thing1.boundingBox(), _thing2.boundingBox());
   }
   
   // Relates to thing1
-  public Boolean collideLeft()
+  public boolean collideLeft()
   {
-    RectF leftCorner = new RectF(_thing1.boundingBox().left, _thing1.boundingBox().top, _thing1.boundingBox().left, _thing1.boundingBox().bottom);
-    return RectF.intersects(leftCorner, _thing2.boundingBox());
+    // left corner
+    _cornerRect.set(_thing1.boundingBox().left, _thing1.boundingBox().top, _thing1.boundingBox().left, _thing1.boundingBox().bottom);
+    return RectF.intersects(_cornerRect, _thing2.boundingBox());
   }
   
   // Relates to thing1
-  public Boolean collideTop()
+  public boolean collideTop()
   {
-    RectF topCorner = new RectF(_thing1.boundingBox().left, _thing1.boundingBox().top, _thing1.boundingBox().right, _thing1.boundingBox().top);
-    return RectF.intersects(topCorner, _thing2.boundingBox());
+    // top corner
+    _cornerRect.set(_thing1.boundingBox().left, _thing1.boundingBox().top, _thing1.boundingBox().right, _thing1.boundingBox().top);
+    return RectF.intersects(_cornerRect, _thing2.boundingBox());
   }
   
   // Relates to thing1
-  public Boolean collideRight()
+  public boolean collideRight()
   {
-    RectF rightCorner = new RectF(_thing1.boundingBox().right, _thing1.boundingBox().top, _thing1.boundingBox().right, _thing1.boundingBox().bottom);
-    return RectF.intersects(rightCorner, _thing2.boundingBox());
+    // right corner
+    _cornerRect.set(_thing1.boundingBox().right, _thing1.boundingBox().top, _thing1.boundingBox().right, _thing1.boundingBox().bottom);
+    return RectF.intersects(_cornerRect, _thing2.boundingBox());
   }
   
   // Relates to thing1
-  public Boolean collideBottom()
+  public boolean collideBottom()
   {
-    RectF bottomCorner = new RectF(_thing1.boundingBox().left, _thing1.boundingBox().bottom, _thing1.boundingBox().right, _thing1.boundingBox().bottom);
-    return RectF.intersects(bottomCorner, _thing2.boundingBox());
+    // bottom corner
+    _cornerRect.set(_thing1.boundingBox().left, _thing1.boundingBox().bottom, _thing1.boundingBox().right, _thing1.boundingBox().bottom);
+    return RectF.intersects(_cornerRect, _thing2.boundingBox());
   }
   
 }
