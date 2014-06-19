@@ -1,4 +1,4 @@
-package com.derdirk.bluetoothtest;
+package com.derdirk.bluetooth;
 
 import java.io.IOException;
 import java.util.UUID;

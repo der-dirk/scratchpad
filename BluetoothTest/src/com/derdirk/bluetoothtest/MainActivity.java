@@ -23,7 +23,8 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.derdirk.bluetoothtest.Bluetooth.BluetoothListener;
+import com.derdirk.bluetooth.Bluetooth;
+import com.derdirk.bluetooth.Bluetooth.BluetoothListener;
 
 public class MainActivity extends ActionBarActivity implements OnClickListener, BluetoothListener
 {
@@ -35,12 +36,12 @@ public class MainActivity extends ActionBarActivity implements OnClickListener, 
   private ArrayAdapter<String> _devicesListAdapter = null;
   
   private Spinner          _deviceSpinner         = null;
-  private TextView         _connectedTextView     = null;
   private Button           _connectButton         = null;
   private Button           _disconnectButton      = null;
   private Button           _submitButton          = null;
   private TextView         _remoteMessageTextView = null;
   private EditText         _localMessageEditText  = null;
+  private TextView         _connectedTextView     = null;
   
 	@Override
 	protected void onCreate(Bundle savedInstanceState)

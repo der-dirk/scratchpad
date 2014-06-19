@@ -1,4 +1,4 @@
-package com.derdirk.bluetoothtest;
+package com.derdirk.bluetooth;
 
 import java.util.Set;
 
@@ -35,7 +35,7 @@ public class Bluetooth implements Callback
   
   private BluetoothListener     _bluetoothListener;
   
-  Bluetooth(BluetoothListener bluetoothListener)
+  public Bluetooth(BluetoothListener bluetoothListener)
   {
     _bluetoothListener          = bluetoothListener;
     _btReadHandler            = new Handler(this);
@@ -53,7 +53,7 @@ public class Bluetooth implements Callback
     return _bluetoothAdapter.isEnabled();
   }
   
-  Set<BluetoothDevice> getBondedDevices()
+  public Set<BluetoothDevice> getBondedDevices()
   {
     return _bluetoothAdapter.getBondedDevices();
   }
