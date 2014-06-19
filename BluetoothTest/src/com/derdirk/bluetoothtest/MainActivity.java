@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import javax.crypto.spec.PSource;
+
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
@@ -104,6 +106,7 @@ public class MainActivity extends ActionBarActivity implements OnClickListener, 
 	    if (resultCode == RESULT_OK)
 	    {
 	      populateDevicesList();
+	      _bluetooth.startListen();
 	    }
 	    else
 	    {
@@ -227,13 +230,15 @@ public class MainActivity extends ActionBarActivity implements OnClickListener, 
   @Override
   public void onDisconnected()
   {
-    _connectedTextView.setText("Connected");
+    _connectedTextView.setText("Disconnected");
     
     _connectButton.setEnabled(true);
     _deviceSpinner.setEnabled(true);
     _disconnectButton.setEnabled(false);
     _submitButton.setEnabled(false);
-    _localMessageEditText.setEnabled(false);    
+    _localMessageEditText.setEnabled(false);
+    
+    _bluetooth.startListen();
   }  
   
   @Override
@@ -242,6 +247,5 @@ public class MainActivity extends ActionBarActivity implements OnClickListener, 
     String message = new String(msg);    
     _remoteMessageTextView.setText(message);
   }
-
   
 }

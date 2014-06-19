@@ -13,16 +13,18 @@ public class ConnectedThread extends Thread implements Callback
 {
   private Handler               _readHandler;
   private Handler               _writeHandler;
+  private Handler               _disconnectedHandler;
   private final BluetoothSocket _socket;
   private final InputStream     _inStream;
   private final OutputStream    _outStream;
 
-  public ConnectedThread(BluetoothSocket socket, Handler readHandler)
+  public ConnectedThread(BluetoothSocket socket, Handler readHandler, Handler disconnectedHandler)
   {
-    _socket             = socket;
-    _readHandler        = readHandler;
-    InputStream  tmpIn  = null;
-    OutputStream tmpOut = null;
+    _socket              = socket;
+    _readHandler         = readHandler;
+    _disconnectedHandler = disconnectedHandler; 
+    InputStream  tmpIn   = null;
+    OutputStream tmpOut  = null;
 
     _writeHandler = new Handler(this);
     
@@ -59,6 +61,7 @@ public class ConnectedThread extends Thread implements Callback
         _readHandler.obtainMessage(Bluetooth.BT_MESSAGE_READ, bytes, -1, buffer).sendToTarget();
       } catch (IOException e)
       {
+        cancel();
         break;
       }
     }
@@ -81,9 +84,8 @@ public class ConnectedThread extends Thread implements Callback
     try
     {
       _socket.close();
-    } catch (IOException e)
-    {
-    }
+    } catch (IOException e) {}
+    _disconnectedHandler.obtainMessage(Bluetooth.BT_MESSAGE_SOCKET_DISCONNECTED).sendToTarget();
   }
 
   @Override

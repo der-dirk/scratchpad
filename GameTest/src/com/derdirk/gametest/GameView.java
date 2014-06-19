@@ -1,4 +1,7 @@
 package com.derdirk.gametest;
+import java.util.Set;
+
+import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -6,10 +9,14 @@ import android.graphics.Paint;
 import android.os.Handler;
 import android.os.Message;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 
-public class GameView extends View
+import com.derdirk.bluetooth.Bluetooth;
+import com.derdirk.bluetooth.Bluetooth.BluetoothListener;
+
+public class GameView extends View implements BluetoothListener
 { 
   protected enum FillMode {FillHeight, FillWidth}
   
@@ -23,6 +30,10 @@ public class GameView extends View
   protected float     _toGameboardFactor;
   protected float     _fromGameboardFactor;
   protected float []  _frame;
+  
+  private Bluetooth _bluetooth = null;
+  
+  boolean tmpInitBT = true;
   
   public GameView(Context context)
   {
@@ -49,6 +60,7 @@ public class GameView extends View
     _paintBall.setColor(Color.GREEN);
     _paintPaddle.setColor(Color.BLUE);
     _paintFrame.setColor(Color.BLACK);
+    _bluetooth = new Bluetooth(this);
     
     // Handlers
     
@@ -58,7 +70,14 @@ public class GameView extends View
       @Override
       public boolean onTouch(View v, MotionEvent event)
       {
-        _gameBoard.onTouch(translateToGameBoard(event.getX()), translateToGameBoard(event.getY()));
+        _gameBoard.setPaddlePos(translateToGameBoard(event.getX()), translateToGameBoard(event.getY()));
+        
+        if (_bluetooth.isConnected())
+        {
+          byte[] msg = MainActivity.PositionToByteArray(event.getX(), event.getY());        
+          _bluetooth.send(msg, msg.length);
+        }
+        
         return true;
       }
     });
@@ -96,6 +115,35 @@ public class GameView extends View
                            translateFromGameBoard(_gameBoard.width()), translateFromGameBoard(0f),                  translateFromGameBoard(_gameBoard.width()), translateFromGameBoard(_gameBoard.height()),
                            translateFromGameBoard(_gameBoard.width()), translateFromGameBoard(_gameBoard.height()), translateFromGameBoard(0f),                 translateFromGameBoard(_gameBoard.height()),
                            translateFromGameBoard(0f),                 translateFromGameBoard(_gameBoard.height()), translateFromGameBoard(0f),                 translateFromGameBoard(0f)};
+    
+    if (tmpInitBT)
+    {
+      tmpInitBT = false;
+      
+      if (_bluetooth.isEnabled())
+      {
+        BluetoothDevice deviceToConnect = null;
+        Set<BluetoothDevice> devices = _bluetooth.getBondedDevices();
+        
+        if (devices.size() == 1) // TODO
+          deviceToConnect = devices.iterator().next();
+        else if (devices.size() > 0)
+        {
+          // Loop through paired devices
+          for (BluetoothDevice device : devices)
+          {
+            if (device.getName() == "Nexus 4")
+            {
+              deviceToConnect = device;
+              break;
+            }
+          }
+        }
+        
+        if (deviceToConnect != null)
+          _bluetooth.connect(deviceToConnect);
+      }
+    }
   }
   
   public float translateToGameBoard(float value)
@@ -112,7 +160,6 @@ public class GameView extends View
   {
     _gameOverHandler = gameOverHandler;
   }
-  
   
   @Override
   protected void onDraw(Canvas canvas)
@@ -145,4 +192,26 @@ public class GameView extends View
 //      _gameOverHandler.sendEmptyMessage(0); 
   }
   
+  @Override
+  public void onConnected()
+  {
+    Log.i("MainActivity", "Connected");
+  }
+
+  @Override
+  public void onDisconnected()
+  {
+    Log.i("MainActivity", "Disconnected");
+  }
+
+  @Override
+  public void onReceive(byte[] msg, int count)
+  {
+    if (msg.length == 8)
+    {
+      float x = MainActivity.ByteArrayToPositionX(msg);
+      float y = MainActivity.ByteArrayToPositionY(msg);
+      _gameBoard.setPaddlePos(x, y);
+    }
+  }
 }

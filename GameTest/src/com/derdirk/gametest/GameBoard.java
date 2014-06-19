@@ -47,7 +47,7 @@ class GameBoard
       _paddle.postionY  = 0.9f * _height;
     }
     
-    public void onTouch(float x, float y)
+    public void setPaddlePos(float x, float y)
     {
       x = Math.min(_width - _paddle.width()/2f, Math.max(_paddle.width()/2f, x));
       _paddle.postionX = x;

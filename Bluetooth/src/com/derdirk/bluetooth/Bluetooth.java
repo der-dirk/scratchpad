@@ -23,10 +23,12 @@ public class Bluetooth implements Callback
   public final static String BT_SERVICE_UUID     = "08a9f970-eff5-11e3-ac10-0800200c9a66";
   public final static int    BT_MESSAGE_READ     = 1;
   public final static int    BT_MESSAGE_WRITE    = 2;
-  public final static int    BT_MESSAGE_SOCKET_CONNECTED = 3;
+  public final static int    BT_MESSAGE_SOCKET_CONNECTED    = 3;
+  public final static int    BT_MESSAGE_SOCKET_DISCONNECTED = 4;
   
   private BluetoothAdapter     _bluetoothAdapter = null;
   private Handler              _btSocketConnectedHandler = null;
+  private Handler              _btSocketDisconnectedHandler = null;
   private Handler              _btReadHandler  = null;
   private Handler              _btWriteHandler = null;
   private AcceptThread         _acceptThread;
@@ -37,10 +39,11 @@ public class Bluetooth implements Callback
   
   public Bluetooth(BluetoothListener bluetoothListener)
   {
-    _bluetoothListener          = bluetoothListener;
-    _btReadHandler            = new Handler(this);
-    _btSocketConnectedHandler = new Handler(this);    
-    _bluetoothAdapter         = BluetoothAdapter.getDefaultAdapter();
+    _bluetoothListener           = bluetoothListener;
+    _btReadHandler               = new Handler(this);
+    _btSocketConnectedHandler    = new Handler(this);
+    _btSocketDisconnectedHandler = new Handler(this);
+    _bluetoothAdapter            = BluetoothAdapter.getDefaultAdapter();
   }
   
   public boolean isAvailabled()
@@ -50,7 +53,7 @@ public class Bluetooth implements Callback
   
   public boolean isEnabled()
   {
-    return _bluetoothAdapter.isEnabled();
+    return _bluetoothAdapter != null && _bluetoothAdapter.isEnabled();
   }
   
   public Set<BluetoothDevice> getBondedDevices()
@@ -84,7 +87,7 @@ public class Bluetooth implements Callback
     
     if (!isConnected())
     {
-      if (_connectThread != null)
+      if (_connectThread == null)
       {    
         _connectThread = new ConnectThread(_bluetoothAdapter, device, _btSocketConnectedHandler);
         _connectThread.start();
@@ -132,7 +135,7 @@ public class Bluetooth implements Callback
       if (!isConnected())
       {
         BluetoothSocket socket = (BluetoothSocket) msg.obj;
-        _connectedThread = new ConnectedThread(socket, _btReadHandler);
+        _connectedThread = new ConnectedThread(socket, _btReadHandler, _btSocketDisconnectedHandler);
         _btWriteHandler  = _connectedThread.writeHandler();
         _connectedThread.start();        
         _bluetoothListener.onConnected();
@@ -140,6 +143,12 @@ public class Bluetooth implements Callback
       else
         Log.w("Bluetooth", "Received a connection callback with an already started ConnectedThread");
         
+      return true;
+    }
+    else if (msg.what == BT_MESSAGE_SOCKET_DISCONNECTED)
+    {
+      _bluetoothListener.onDisconnected();
+
       return true;
     }
     
