@@ -25,7 +25,7 @@ public class AcceptThread extends Thread
     try
     {
       // MY_UUID is the app's UUID string, also used by the client code
-      tmp = _bluetoothAdapter.listenUsingRfcommWithServiceRecord(MainActivity.BT_SERVICE_NAME, UUID.fromString(MainActivity.BT_SERVICE_UUID));
+      tmp = _bluetoothAdapter.listenUsingRfcommWithServiceRecord(Bluetooth.BT_SERVICE_NAME, UUID.fromString(Bluetooth.BT_SERVICE_UUID));
     }
     catch (IOException e) { }
     _serverSocket = tmp;
@@ -49,7 +49,7 @@ public class AcceptThread extends Thread
       if (socket != null)
       {
         // Do work to manage the connection (in a separate thread)
-        _socketConnectedHandler.obtainMessage(MainActivity.BT_MESSAGE_SOCKET_CONNECTED, socket).sendToTarget();
+        _socketConnectedHandler.obtainMessage(Bluetooth.BT_MESSAGE_SOCKET_CONNECTED, socket).sendToTarget();
         try
         {
           _serverSocket.close();

@@ -6,12 +6,8 @@ import java.util.Set;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Handler.Callback;
-import android.os.Message;
 import android.support.v4.app.Fragment;
 import android.support.v7.app.ActionBarActivity;
 import android.view.LayoutInflater;
@@ -27,29 +23,21 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class MainActivity extends ActionBarActivity implements OnClickListener, Callback
+import com.derdirk.bluetoothtest.Bluetooth.BluetoothListener;
+
+public class MainActivity extends ActionBarActivity implements OnClickListener, BluetoothListener
 {
-  public final static String BT_SERVICE_NAME     = "BT_TEXT_SERVICE";
-  public final static String BT_SERVICE_UUID     = "08a9f970-eff5-11e3-ac10-0800200c9a66";
-  public final static int    BT_MESSAGE_READ     = 1;
-  public final static int    BT_MESSAGE_WRITE    = 2;
-  public final static int    BT_MESSAGE_SOCKET_CONNECTED = 3;
-  
   private final static int REQUEST_ENABLE_BT = 1;
   
-  private BluetoothAdapter     _bluetoothAdapter = null;
+  private Bluetooth        _bluetooth;
+  
   private List<String>         _devicesList = new ArrayList<String>();
   private ArrayAdapter<String> _devicesListAdapter = null;
-  private Handler              _btSocketConnectedHandler = null;
-  private Handler              _btReadHandler  = null;
-  private Handler              _btWriteHandler = null;
-  private AcceptThread         _acceptThread;
-  private ConnectThread        _connectThread;
-  private ConnectedThread      _connectedThread;
   
   private Spinner          _deviceSpinner         = null;
-  private TextView         _connectedTextView    = null;
+  private TextView         _connectedTextView     = null;
   private Button           _connectButton         = null;
+  private Button           _disconnectButton      = null;
   private Button           _submitButton          = null;
   private TextView         _remoteMessageTextView = null;
   private EditText         _localMessageEditText  = null;
@@ -65,24 +53,20 @@ public class MainActivity extends ActionBarActivity implements OnClickListener, 
 			getSupportFragmentManager().beginTransaction().add(R.id.container, new PlaceholderFragment()).commit();
 		}
 				
-		_devicesListAdapter       = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, _devicesList);
-		_btReadHandler            = new Handler(this);
-		_btSocketConnectedHandler = new Handler(this);
+		_devicesListAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, _devicesList);
 		
-    _bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-    if (_bluetoothAdapter != null)
-    {
-      if (!_bluetoothAdapter.isEnabled())
+		_bluetooth = new Bluetooth(this);
+		
+		if (_bluetooth.isAvailabled())
+		{
+      if (!_bluetooth.isEnabled())
       {
         Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
         startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
       }
       else
-      {        
-        _acceptThread = new AcceptThread(_bluetoothAdapter, _btSocketConnectedHandler);
-        _acceptThread.start();
-      }
-    }
+        _bluetooth.startListen();
+		}
     else
       Toast.makeText(getApplicationContext(), "No bluetooth available", Toast.LENGTH_SHORT).show();
 	}
@@ -123,7 +107,6 @@ public class MainActivity extends ActionBarActivity implements OnClickListener, 
 	    else
 	    {
   	    Toast.makeText(getApplicationContext(), "Bluetooth was not enabled", Toast.LENGTH_SHORT).show();
-  	    _bluetoothAdapter = null;
 	    }
 	  }
 	}
@@ -131,7 +114,7 @@ public class MainActivity extends ActionBarActivity implements OnClickListener, 
   protected void populateDevicesList()
   {
     _devicesListAdapter.clear();
-    Set<BluetoothDevice> pairedDevices = _bluetoothAdapter.getBondedDevices();    
+    Set<BluetoothDevice> pairedDevices = _bluetooth.getBondedDevices();    
     // If there are paired devices
     if (pairedDevices.size() > 0)
     {
@@ -149,10 +132,10 @@ public class MainActivity extends ActionBarActivity implements OnClickListener, 
 	@Override
 	public void onClick(View view)
 	{
-	  if (view.getId() == R.id.connect_button)g
+	  if (view.getId() == R.id.connect_button && _bluetooth.isEnabled())
 	  {
 	    BluetoothDevice selectedDevice = null;
-  	  Set<BluetoothDevice> pairedDevices = _bluetoothAdapter.getBondedDevices();
+  	  Set<BluetoothDevice> pairedDevices = _bluetooth.getBondedDevices();
       if (pairedDevices.size() > 0)
       {
         // Loop through paired devices
@@ -167,21 +150,21 @@ public class MainActivity extends ActionBarActivity implements OnClickListener, 
           }
         }
       }  	  
-  	  
+	    
       if (selectedDevice != null)
-      {
-    	  _connectThread = new ConnectThread(_bluetoothAdapter, selectedDevice, _btSocketConnectedHandler);
-    	  _connectThread.start();
-      }
-      
+    	  _bluetooth.connect(selectedDevice);
+	  }
+	  else if (view.getId() == R.id.disconnect_button)
+	  {
+	    _bluetooth.disconnect();
 	  }
 	  else if (view.getId() == R.id.submit_button)
 	  {
-	    if (_btWriteHandler != null)
-	    {
-	      byte [] bytes = _localMessageEditText.getText().toString().getBytes();
-	      _btWriteHandler.obtainMessage(BT_MESSAGE_WRITE, bytes).sendToTarget();
-	    }
+	    String message = _localMessageEditText.getText().toString();
+      byte [] bytes = message.getBytes();
+      int     count = message.length();
+      
+      _bluetooth.send(bytes, count);
 	  }
 	}
 	
@@ -211,7 +194,10 @@ public class MainActivity extends ActionBarActivity implements OnClickListener, 
 	    
 	    act._connectButton = (Button) rootView.findViewById(R.id.connect_button);
 	    act._connectButton.setOnClickListener(act);
-	    
+
+	     act._disconnectButton = (Button) rootView.findViewById(R.id.disconnect_button);
+	     act._disconnectButton.setOnClickListener(act);
+	      
 	    act._submitButton = (Button) rootView.findViewById(R.id.submit_button);
       act._submitButton.setOnClickListener(act);
 	    
@@ -226,31 +212,34 @@ public class MainActivity extends ActionBarActivity implements OnClickListener, 
 	}
 
   @Override
-  public boolean handleMessage(Message msg)
+  public void onConnected()
   {
-    if (msg.what == BT_MESSAGE_READ)
-    {
-      int    bytes   = msg.arg1;
-      byte[] buffer  = (byte[]) msg.obj;
-      String message = new String(buffer);
-      
-      _remoteMessageTextView.setText(message);
-      
-      return true;
-    }
-    else if (msg.what == BT_MESSAGE_SOCKET_CONNECTED)
-    {
-      BluetoothSocket socket = (BluetoothSocket) msg.obj;
-      _connectedThread = new ConnectedThread(socket, _btReadHandler);
-      _btWriteHandler = _connectedThread.writeHandler();
-      _connectedThread.start();
-      
-      _connectedTextView.setText("Connected");
-      
-      return true;
-    }
+    _connectedTextView.setText("Connected");
     
-    return false;
+    _connectButton.setEnabled(false);
+    _deviceSpinner.setEnabled(false);
+    _disconnectButton.setEnabled(true);
+    _submitButton.setEnabled(true);
+    _localMessageEditText.setEnabled(true);
+  }
+  
+  @Override
+  public void onDisconnected()
+  {
+    _connectedTextView.setText("Connected");
+    
+    _connectButton.setEnabled(true);
+    _deviceSpinner.setEnabled(true);
+    _disconnectButton.setEnabled(false);
+    _submitButton.setEnabled(false);
+    _localMessageEditText.setEnabled(false);    
+  }  
+  
+  @Override
+  public void onReceive(byte[] msg, int count)
+  {
+    String message = new String(msg);    
+    _remoteMessageTextView.setText(message);
   }
 
   

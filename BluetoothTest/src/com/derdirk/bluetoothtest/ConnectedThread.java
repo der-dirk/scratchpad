@@ -17,26 +17,24 @@ public class ConnectedThread extends Thread implements Callback
   private final InputStream     _inStream;
   private final OutputStream    _outStream;
 
-  public ConnectedThread(BluetoothSocket socket, Handler handler)
+  public ConnectedThread(BluetoothSocket socket, Handler readHandler)
   {
-    _socket = socket;
-    _readHandler = handler;
-    InputStream tmpIn = null;
+    _socket             = socket;
+    _readHandler        = readHandler;
+    InputStream  tmpIn  = null;
     OutputStream tmpOut = null;
 
     _writeHandler = new Handler(this);
     
-    // Get the input and output streams, using temp objects because
-    // member streams are final
     try
     {
-      tmpIn = socket.getInputStream();
+      // Get the input and output streams, using temp objects because member streams are final      
+      tmpIn  = socket.getInputStream();
       tmpOut = socket.getOutputStream();
-    } catch (IOException e)
-    {
     }
+    catch (IOException e) {}
 
-    _inStream = tmpIn;
+    _inStream  = tmpIn;
     _outStream = tmpOut;
   }
 
@@ -58,7 +56,7 @@ public class ConnectedThread extends Thread implements Callback
         // Read from the InputStream
         bytes = _inStream.read(buffer);
         // Send the obtained bytes to the UI activity
-        _readHandler.obtainMessage(MainActivity.BT_MESSAGE_READ, bytes, -1, buffer).sendToTarget();
+        _readHandler.obtainMessage(Bluetooth.BT_MESSAGE_READ, bytes, -1, buffer).sendToTarget();
       } catch (IOException e)
       {
         break;

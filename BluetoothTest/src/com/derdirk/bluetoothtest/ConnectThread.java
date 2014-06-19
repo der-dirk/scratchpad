@@ -12,24 +12,22 @@ public class ConnectThread extends Thread
 {
   private BluetoothAdapter      _bluetoothAdapter;
   private final BluetoothSocket _socket;
-  private final BluetoothDevice _device;
   private Handler               _socketConnectedHandler = null;
 
   public ConnectThread(BluetoothAdapter bluetoothAdapter, BluetoothDevice device, Handler socketConnectedHandler)
   {
-    _bluetoothAdapter = bluetoothAdapter;
+    _bluetoothAdapter       = bluetoothAdapter;
     _socketConnectedHandler = socketConnectedHandler;
     
     // Use a temporary object that is later assigned to mmSocket,
     // because mmSocket is final
     BluetoothSocket tmp = null;
-    _device = device;
 
     // Get a BluetoothSocket to connect with the given BluetoothDevice
     try
     {
       // MY_UUID is the app's UUID string, also used by the server code
-      tmp = device.createRfcommSocketToServiceRecord(UUID.fromString(MainActivity.BT_SERVICE_UUID));
+      tmp = device.createRfcommSocketToServiceRecord(UUID.fromString(Bluetooth.BT_SERVICE_UUID));
     }
     catch (IOException e)
     {
@@ -47,7 +45,7 @@ public class ConnectThread extends Thread
       // Connect the device through the socket. This will block
       // until it succeeds or throws an exception
       _socket.connect();
-      _socketConnectedHandler.obtainMessage(MainActivity.BT_MESSAGE_SOCKET_CONNECTED, _socket).sendToTarget();
+      _socketConnectedHandler.obtainMessage(Bluetooth.BT_MESSAGE_SOCKET_CONNECTED, _socket).sendToTarget();
     }
     catch (IOException connectException)
     {
