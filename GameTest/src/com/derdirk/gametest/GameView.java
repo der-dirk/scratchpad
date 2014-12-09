@@ -1,7 +1,4 @@
 package com.derdirk.gametest;
-import java.util.Set;
-
-import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -9,29 +6,26 @@ import android.graphics.Paint;
 import android.os.Handler;
 import android.os.Message;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 
-import com.derdirk.bluetooth.Bluetooth;
-import com.derdirk.bluetooth.Bluetooth.BluetoothListener;
+import com.derdirk.gametest.GameBoardLink.RemoteListener;
 
-public class GameView extends View implements BluetoothListener
+public class GameView extends View implements RemoteListener
 { 
   protected enum FillMode {FillHeight, FillWidth}
   
-  protected Handler   _viewHandler     = null;
-  protected Handler   _gameOverHandler = null;
-  protected GameBoard _gameBoard       = new GameBoard();  
-  protected Paint     _paintBall       = new Paint();
-  protected Paint     _paintPaddle     = new Paint();
-  protected Paint     _paintFrame      = new Paint();
-  protected FillMode  _fillMode;
-  protected float     _toGameboardFactor;
-  protected float     _fromGameboardFactor;
-  protected float []  _frame;
-  
-  private Bluetooth _bluetooth = null;
+  protected Handler       _viewHandler     = null;
+  protected Handler       _gameOverHandler = null;
+  protected GameBoard     _gameBoard       = new GameBoard();
+  protected GameBoardLink _gameBoardLink   = null;
+  protected Paint         _paintBall       = new Paint();
+  protected Paint         _paintPaddle     = new Paint();
+  protected Paint         _paintFrame      = new Paint();
+  protected FillMode      _fillMode;
+  protected float         _toGameboardFactor;
+  protected float         _fromGameboardFactor;
+  protected float []      _frame;
   
   boolean tmpInitBT = true;
   
@@ -60,7 +54,6 @@ public class GameView extends View implements BluetoothListener
     _paintBall.setColor(Color.GREEN);
     _paintPaddle.setColor(Color.BLUE);
     _paintFrame.setColor(Color.BLACK);
-    _bluetooth = new Bluetooth(this);
     
     // Handlers
     
@@ -70,14 +63,8 @@ public class GameView extends View implements BluetoothListener
       @Override
       public boolean onTouch(View v, MotionEvent event)
       {
-        _gameBoard.setPaddlePos(translateToGameBoard(event.getX()), translateToGameBoard(event.getY()));
-        
-        if (_bluetooth.isConnected())
-        {
-          byte[] msg = MainActivity.PositionToByteArray(event.getX(), event.getY());        
-          _bluetooth.send(msg, msg.length);
-        }
-        
+        _gameBoard.setLocalPaddlePos(translateToGameBoard(event.getX()), translateToGameBoard(event.getY()));        
+        _gameBoardLink.sendLocalPaddlePosition(new Coordinate(event.getX(), event.getY()));
         return true;
       }
     });
@@ -94,6 +81,18 @@ public class GameView extends View implements BluetoothListener
 
   @Override
   protected void onSizeChanged (int w, int h, int oldw, int oldh)
+  {
+    recalculateGameboardSize();
+    
+    if (tmpInitBT)
+    {
+      tmpInitBT = false;      
+      _gameBoardLink = new LocalyCoupledGameBoardLink(this);
+      _gameBoardLink.init();
+    }
+  }
+
+  private void recalculateGameboardSize()
   {
     float viewAspectRatio      = (float)getWidth() / (float)getHeight();
     float gameboardAspectRatio = _gameBoard.width() / _gameBoard.height();
@@ -115,35 +114,6 @@ public class GameView extends View implements BluetoothListener
                            translateFromGameBoard(_gameBoard.width()), translateFromGameBoard(0f),                  translateFromGameBoard(_gameBoard.width()), translateFromGameBoard(_gameBoard.height()),
                            translateFromGameBoard(_gameBoard.width()), translateFromGameBoard(_gameBoard.height()), translateFromGameBoard(0f),                 translateFromGameBoard(_gameBoard.height()),
                            translateFromGameBoard(0f),                 translateFromGameBoard(_gameBoard.height()), translateFromGameBoard(0f),                 translateFromGameBoard(0f)};
-    
-    if (tmpInitBT)
-    {
-      tmpInitBT = false;
-      
-      if (_bluetooth.isEnabled())
-      {
-        BluetoothDevice deviceToConnect = null;
-        Set<BluetoothDevice> devices = _bluetooth.getBondedDevices();
-        
-        if (devices.size() == 1) // TODO
-          deviceToConnect = devices.iterator().next();
-        else if (devices.size() > 0)
-        {
-          // Loop through paired devices
-          for (BluetoothDevice device : devices)
-          {
-            if (device.getName() == "Nexus 4")
-            {
-              deviceToConnect = device;
-              break;
-            }
-          }
-        }
-        
-        if (deviceToConnect != null)
-          _bluetooth.connect(deviceToConnect);
-      }
-    }
   }
   
   public float translateToGameBoard(float value)
@@ -166,21 +136,26 @@ public class GameView extends View implements BluetoothListener
   {  
     super.onDraw(canvas);
     
-    Ball   ball   = _gameBoard.ball();
-    Paddle paddle = _gameBoard.paddle();
+    Ball   ball         = _gameBoard.ball();
+    Paddle localPaddle  = _gameBoard.localPaddle();
+    Paddle remotePaddle = _gameBoard.remotePaddle();
     
     canvas.drawCircle(translateFromGameBoard(ball.postionX),
                       translateFromGameBoard(ball.postionY),
                       translateFromGameBoard(ball.size()),
                       _paintBall);
     
-    canvas.drawRect(translateFromGameBoard(paddle.postionX - paddle.width()/2f),
-                    translateFromGameBoard(paddle.postionY - paddle.height()/2f),
-                    translateFromGameBoard(paddle.postionX + paddle.width()/2f),
-                    translateFromGameBoard(paddle.postionY + paddle.height()/2f),
+    canvas.drawRect(translateFromGameBoard(localPaddle.postionX - localPaddle.width()/2f),
+                    translateFromGameBoard(localPaddle.postionY - localPaddle.height()/2f),
+                    translateFromGameBoard(localPaddle.postionX + localPaddle.width()/2f),
+                    translateFromGameBoard(localPaddle.postionY + localPaddle.height()/2f),
                     _paintPaddle);
     
-
+    canvas.drawRect(translateFromGameBoard(remotePaddle.postionX - remotePaddle.width()/2f),
+                    translateFromGameBoard(remotePaddle.postionY - remotePaddle.height()/2f),
+                    translateFromGameBoard(remotePaddle.postionX + remotePaddle.width()/2f),
+                    translateFromGameBoard(remotePaddle.postionY + remotePaddle.height()/2f),
+                    _paintPaddle);    
     
     canvas.drawLines(_frame, 0, 16, _paintFrame);
     
@@ -191,27 +166,16 @@ public class GameView extends View implements BluetoothListener
 //    else
 //      _gameOverHandler.sendEmptyMessage(0); 
   }
-  
+
   @Override
-  public void onConnected()
+  public void onBallPositionReceived(Coordinate position)
   {
-    Log.i("MainActivity", "Connected");
+    // TODO Auto-generated method stub
   }
 
   @Override
-  public void onDisconnected()
+  public void onPaddlePositionReceived(Coordinate position)
   {
-    Log.i("MainActivity", "Disconnected");
-  }
-
-  @Override
-  public void onReceive(byte[] msg, int count)
-  {
-    if (msg.length == 8)
-    {
-      float x = MainActivity.ByteArrayToPositionX(msg);
-      float y = MainActivity.ByteArrayToPositionY(msg);
-      _gameBoard.setPaddlePos(x, y);
-    }
+    _gameBoard.setRemotePaddlePos(translateToGameBoard(position.x), translateToGameBoard(position.y));
   }
 }

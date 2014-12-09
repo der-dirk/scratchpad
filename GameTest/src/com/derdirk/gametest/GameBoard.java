@@ -4,18 +4,20 @@ package com.derdirk.gametest;
 
 class GameBoard
   {
-    protected float   _width    = 1.0f;
-    protected float   _height   = 1.0f;
-    protected Ball    _ball     = new Ball(0.1f);
-    protected Paddle  _paddle   = new Paddle(0.4f, 0.1f);
-    protected boolean _gameOver = false;
+    protected float   _width        = 1.0f;
+    protected float   _height       = 1.0f;
+    protected Ball    _ball         = new Ball(0.1f);
+    protected Paddle  _localPaddle  = new Paddle(0.4f, 0.1f);
+    protected Paddle  _remotePaddle = new Paddle(0.4f, 0.1f);
+    protected boolean _gameOver     = false;
     protected CollisionDetector _cd = new CollisionDetector();
     
-    public float   width()    {return _width;}
-    public float   height()   {return _height;}    
-    public Ball    ball()     {return _ball;}
-    public Paddle  paddle()   {return _paddle;}
-    public boolean gameOver() {return _gameOver;}
+    public float   width()        {return _width;}
+    public float   height()       {return _height;}    
+    public Ball    ball()         {return _ball;}
+    public Paddle  localPaddle()  {return _localPaddle;}
+    public Paddle  remotePaddle() {return _remotePaddle;}
+    public boolean gameOver()     {return _gameOver;}
     
     public GameBoard()
     {
@@ -24,10 +26,15 @@ class GameBoard
       _ball.momentumX = 0.015f;
       _ball.momentumY = 0.015f;
      
-      _paddle.postionX  = 0.5f;
-      _paddle.postionY  = 0.5f;
-      _paddle.momentumX = 0f;
-      _paddle.momentumY = 0f;
+      _localPaddle.postionX  = 0.5f;
+      _localPaddle.postionY  = 0.5f;
+      _localPaddle.momentumX = 0f;
+      _localPaddle.momentumY = 0f;
+      
+      _remotePaddle.postionX  = 0.5f;
+      _remotePaddle.postionY  = 0.5f;
+      _remotePaddle.momentumX = 0f;
+      _remotePaddle.momentumY = 0f;      
     }
     
     public void setAspectRatio(float aspectRatio)
@@ -44,13 +51,20 @@ class GameBoard
         _height = 1.0f / aspectRatio;        
       }
       
-      _paddle.postionY  = 0.9f * _height;
+      _localPaddle.postionY   = _height - 0.1f;
+      _remotePaddle.postionY  = 0.1f;
     }
     
-    public void setPaddlePos(float x, float y)
+    public void setLocalPaddlePos(float x, float y)
     {
-      x = Math.min(_width - _paddle.width()/2f, Math.max(_paddle.width()/2f, x));
-      _paddle.postionX = x;
+      x = Math.min(_width - _localPaddle.width()/2f, Math.max(_localPaddle.width()/2f, x));
+      _localPaddle.postionX = x;
+    }
+    
+    public void setRemotePaddlePos(float x, float y)
+    {
+      x = Math.min(_width - _remotePaddle.width()/2f, Math.max(_remotePaddle.width()/2f, x));
+      _remotePaddle.postionX = x;
     }
     
     public void proceed()
@@ -88,7 +102,7 @@ class GameBoard
       }
       else
       {
-        _cd.setThings(_paddle, _ball);
+        _cd.setThings(_localPaddle, _ball);
         if (_cd.collide())
         {
           if ((_cd.collideLeft() || _cd.collideRight()) && (_cd.collideTop() || _cd.collideBottom()))
@@ -101,12 +115,26 @@ class GameBoard
           else
             _ball.swapVertical();
         }
+        
+        _cd.setThings(_remotePaddle, _ball);
+        if (_cd.collide())
+        {
+          if ((_cd.collideLeft() || _cd.collideRight()) && (_cd.collideTop() || _cd.collideBottom()))
+          {
+            _ball.swapHorizontal();
+            _ball.swapVertical();
+          }
+          else if (_cd.collideLeft() || _cd.collideRight())
+            _ball.swapHorizontal();
+          else
+            _ball.swapVertical();
+        }        
       }
         
       if (!_gameOver)
       {
         _ball.move();
-        _paddle.move();
+        _localPaddle.move();
 
       }             
     }
